@@ -1,0 +1,8 @@
+"0",""
+"0","(train <- "
+"0","  titanic_train %>% "
+"0","  select(Survived, Pclass, Sex, Age) %>%"
+"0","  mutate(Survived = factor(x = Survived, labels = c(""no"", ""yes"")),"
+"0","         Pclass = factor(x = Pclass, labels = c(""1st"", ""2nd"", ""3rd"")), #<<"
+"0","         Sex = factor(x = Sex)) %>% "
+"0","  as_tibble())"

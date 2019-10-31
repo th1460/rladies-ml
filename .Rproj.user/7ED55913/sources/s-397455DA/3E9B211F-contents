@@ -1,0 +1,798 @@
+---
+output:
+  xaringan::moon_reader:
+    seal: false
+    lib_dir: libs
+    css: ["default", "rladies-fonts", "resources/css/progress.css", "resources/css/adds.css"]
+    nature:
+      ratio: "16:9"
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);">
+          </div>
+        </div>
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.retina = 3)
+
+```
+
+class: inverse, left, middle
+
+background-image: url(resources/images/cover.gif)
+background-size: cover
+
+# Machine Learning
+
+### com aplicações em R
+
+<img src="resources/images/logo-rladies.svg" width="150px"/>
+<img src="resources/images/logo-ibm.png" width="150px"/>
+
+.large[Thiago Pires | R-Ladies | 31 Out 2019]
+
+---
+layout: true
+
+background-image: url(resources/images/logo-rladies.svg)
+background-position: 97% 3%
+background-size: 7%
+
+---
+class: left middle
+background-color: #00b33c
+
+# Aprendizagem supervisionada
+
+.large[Árvore e Floresta aleatória]
+
+---
+# Titanic
+
+```{r}
+
+require(titanic)
+require(dplyr)
+
+titanic_train %>% glimpse()
+
+```
+
+---
+# Manipulação
+
+```{r}
+
+(train <- 
+  titanic_train %>% 
+  select(Survived, Pclass, Sex, Age) %>%
+  mutate(Survived = factor(x = Survived, labels = c("no", "yes")),
+         Pclass = factor(x = Pclass, labels = c("1st", "2nd", "3rd")), #<<
+         Sex = factor(x = Sex)) %>% 
+  as_tibble())
+
+```
+
+---
+# Sex $\times$ Survived
+
+.pull-left[
+```{r plot-sex, fig.show='hide'}
+
+require(ggplot2)
+
+train %>% 
+  ggplot() +
+  aes(Sex, ..count.., fill = Survived) + 
+  geom_bar(position = "fill") + #<<
+  scale_y_continuous(
+    labels = scales::percent_format(suffix = "")) +
+  scale_fill_brewer(
+    palette = "Accent", direction = -1) +
+  labs(y = "%") +
+  theme_minimal()
+
+```
+]
+
+.pull-right[
+```{r ref.label='plot-sex', echo=FALSE}
+```
+]
+
+---
+# Pclass $\times$ Survived
+
+.pull-left[
+```{r plot-pclass, fig.show='hide'}
+
+train %>% 
+  ggplot() +
+  aes(Pclass, ..count.., fill = Survived) + 
+  geom_bar(position = "fill") +
+  scale_y_continuous(
+    labels = scales::percent_format(suffix = "")) +
+  scale_fill_brewer(
+    palette = "Accent", direction = -1) +
+  labs(y = "%") +
+  theme_minimal()
+
+```
+]
+
+.pull-right[
+```{r ref.label='plot-pclass', echo=FALSE}
+```
+]
+
+---
+# Pclass $\times$ Sex $\times$ Survived
+
+.pull-left[
+```{r plot-pclass-sex, fig.show='hide'}
+
+train %>% 
+  ggplot() +
+  aes(Sex, ..count.., fill = Survived) + 
+  geom_bar(position = "fill") +
+  scale_y_continuous(
+    labels = scales::percent_format(suffix = "")) +
+  scale_fill_brewer(
+    palette = "Accent", direction = -1) +
+  labs(y = "%") +
+  facet_grid(. ~ Pclass) + #<<
+  theme_minimal()
+
+```
+]
+
+.pull-right[
+```{r ref.label='plot-pclass-sex', echo=FALSE}
+```
+]
+
+---
+# Age $\times$ Survived
+
+.pull-left[
+```{r plot-age, fig.show='hide'}
+
+train %>% 
+  ggplot() +
+  aes(Survived, Age, fill = Survived) +
+  geom_boxplot() + #<<
+  scale_fill_brewer(
+    palette = "Accent", direction = -1) +
+  theme_minimal()
+
+```
+]
+
+.pull-right[
+```{r ref.label='plot-age', echo=FALSE}
+```
+]
+
+---
+# Árvore de decisão ([`rpart::`](https://cran.r-project.org/web/packages/rpart/vignettes/longintro.pdf))
+
+```{r}
+
+require(rpart)
+
+cart0 <- 
+  train %>% 
+  rpart(Survived ~ Sex + Pclass + Age, 
+        data = .,
+        parms=list(split="gini")) # "gini" (default)/"information"
+
+# summary(cart0) fornece informações sobre o ajuste
+
+```
+
+No `rpart` (Recursive PARTitioning) é implementada muitas das ideias contidas no CART (Classification and Regression Trees).
+
+Por padrão, é usada a **medida Gini (G)** a fim de selecionar as divisões ao executar a classificação.
+
+$$G = \sum_{k = 1}^K \hat p_{mk} (1 - \hat p_{mk})$$
+
+.tiny[
+- $K$: classes
+- $m$: região
+- $\hat p$: proporção na m-ésima região e k-ésima classe
+]
+
+>Uma impureza Gini de 0 significa uma precisão de 100% na previsão da classe dos elementos.
+
+---
+# Árvore de decisão (`rpart.plot::`)
+
+.pull-left[
+```{r tree-plot, fig.show='hide'}
+
+require(rpart.plot)
+
+rpart.plot(cart0)
+
+```
+]
+
+.pull-right[
+```{r ref.label='tree-plot', echo=FALSE}
+```
+]
+
+---
+# Interpretação do resultados
+
+.pull-left[
+```{r ref.label='tree-plot', echo=FALSE}
+```
+]
+
+.pull-right[
+
+- No topo mostra 38% são sobreviventes de **100% dos passageiros**
+- A primeira variável que discrimina quem sobreviveu ou não foi **sexo**
+- No ramo esquerdo dos 65% homens, 19% sobreviveram
+- Por outro lado de 35% das mulheres, 74% sobreviveram
+- Homens maiores que 6 anos e meio (62% dos passageiros), 17% sobreviveram
+- Homens menores que 6 anos e meio (3% dos passageiros), 67% sobreviveram
+- Mulheres da $1^a$ e $2^a$ classe (19% dos passageiros), 95% sobreviveram
+- Mulheres da $3^a$ classe (16% dos passageiros), 50% sobreviveram
+
+]
+
+---
+# Complexity Parameter (CP)
+
+O parâmetro de complexidade $cp$ é usado para controlar o tamanho da árvore de decisão e assim selecionar o tamanho ideal.
+
+>Contudo, se o custo de adicionar outra variável à árvore de decisão do nó atual estiver acima do valor de $cp$, a construção da árvore não continuará. O *default* é 0,01.
+
+```{r}
+
+cart0 %>% printcp()
+
+```
+
+---
+# Complexity Parameter (CP)
+
+.pull-left[
+Alterando o $cp$.
+
+```{r}
+
+cart0 %>% prune(cp = .02) %>% rpart.plot()
+
+```
+]
+
+.pull-right[
+
+- Valores muito pequenos do $cp$ aumentam a complexidade da árvore e poderá incorrer em *overfitting*.
+
+- Valores altos podem produzir modelos mais simples e gerar *underfitting*.
+
+>*Muitos dos modelos no contexto do ML se utilizam de alguma parâmetros para lidar com a **regularidade (apertar ou afroxar o parafuso)***
+
+.right[
+
+.large[Então como avaliar estes parâmetros?]
+
+.large[Outro ponto é: como estimar a habilidade do modelo em novos dados?]
+
+]
+
+]
+
+---
+# Cross-validation (`caret::`)
+
+As reamostragens são feitas segundo cada parâmetro.
+
+```{r}
+
+require(caret)
+
+set.seed(945)
+
+cart1 <- 
+  train %>% 
+  filter_all(function(x) !is.na(x)) %>% #<<
+  train(Survived ~ ., 
+        data = ., 
+        method="rpart", 
+        trControl = trainControl(method = "cv", # cross-validation
+                                 number = 7), # 7 folders
+        tuneLength = 5) # tuning cp #<<
+
+cart1$results
+
+```
+
+---
+# Cross-validation (`caret::`)
+
+```{r}
+
+set.seed(945)
+
+cart2 <- 
+  train %>% 
+  filter_all(function(x) !is.na(x)) %>% 
+  train(Survived ~ ., 
+        data = ., 
+        method="rpart", 
+        trControl = trainControl(method = "cv", # cross-validation
+                                 number = 7), # 7 folders
+        tuneGrid = expand.grid(cp = c(.04, .03, .02, .01, .00))) # tuning cp #<<
+
+cart2$results
+
+```
+
+---
+# `rattle::fancyRpartPlot`
+
+.pull-left[
+```{r fancyrpart, fig.show='hide'}
+
+rattle::fancyRpartPlot(cart1$finalModel, sub = "")
+
+```
+]
+
+.pull-right[
+```{r ref.label='fancyrpart', echo=FALSE}
+```
+]
+
+---
+# Inserindo outras variáveis
+
+```{r}
+
+(train2 <- 
+  titanic_train %>% 
+  select(Survived, Pclass, Sex, Age, Fare, Embarked, SibSp) %>%
+  mutate(Survived = factor(x = Survived, labels = c("no", "yes")),
+         Pclass = factor(x = Pclass, labels = c("1st", "2nd", "3rd")),
+         Sex = factor(x = Sex),
+         Embarked = factor(x = Embarked)) %>% 
+  as_tibble())
+
+```
+
+---
+# `randomForest::`
+
+```{r}
+
+require(randomForest)
+
+set.seed(2355)
+
+rf0 <- 
+  train2 %>% 
+  filter_all(function(x) ! is.na(x)) %>%
+  randomForest(Survived ~ ., data = .,
+               ntree = 500, # número de árvores
+               mtry = 3, # número de variáveis de entrada escolhidas aleatoriamente
+               nodesize = .01 * nrow(train2)) # define de forma implícita a profundidade
+
+```
+
+---
+# `$importance` e `$confusion`
+
+.pull-left[
+
+```{r highlight.output=3:5}
+
+rf0$importance
+
+```
+
+>Avaliar a **diminuição no GINI** quando essa variável é omitida leva a uma compreensão de quão importante é essa característica para dividir os dados corretamente.
+
+]
+
+.pull-right[
+
+```{r}
+
+rf0$confusion
+
+# 1 - class.error "no" (especificidade)
+1 - 45/(45 + 379)
+
+# 1 - class.error "yes" (sensibilidade)
+1 - 85/(85 + 205)
+
+```
+
+]
+
+---
+# Cross-validation (`caret::`)
+
+```{r highlight.output=4}
+
+set.seed(1124)
+
+rf1 <- 
+  train2 %>% 
+  filter_all(function(x) !is.na(x)) %>% #<<
+  train(Survived ~ ., 
+        data = ., 
+        method="rf", 
+        trControl = trainControl(method = "cv", # cross-validation
+                                 number = 7), # 7 folders
+        tuneLength = 5) #<< tuning mtry
+
+rf1$results
+
+```
+
+---
+
+# `$importance` e `$confusion`
+
+.pull-left[
+```{r highlight.output=4:6}
+
+rf1$finalModel$importance
+
+```
+]
+
+.pull-right[
+```{r}
+
+rf1$finalModel$confusion
+
+# 1 - class.error "no" (especificidade)
+1 - 51/(51 + 373)
+
+# 1 - class.error "yes" (sensibilidade)
+1 - 76/(76 + 214)
+
+```
+]
+
+---
+# Tuning multiplos parâmetros através de um *custom model*
+
+```{r}
+
+customRF <- list(type = "Classification", library = "randomForest", loop = NULL)
+customRF$parameters <- data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
+customRF$grid <- function(x, y, len = NULL, search = "grid") {}
+customRF$fit <- function(x, y, wts, param, lev, last, weights, classProbs, ...) {
+  randomForest(x, y, mtry = param$mtry, ntree=param$ntree, ...)
+}
+customRF$predict <- function(modelFit, newdata, preProc = NULL, submodels = NULL)
+   predict(modelFit, newdata)
+customRF$prob <- function(modelFit, newdata, preProc = NULL, submodels = NULL)
+   predict(modelFit, newdata, type = "prob")
+customRF$sort <- function(x) x[order(x[,1]),]
+customRF$levels <- function(x) x$classes
+
+```
+
+---
+# Tuning multiplos parâmetros através de um *custom model*
+
+```{r highlight.output=4}
+
+set.seed(1124)
+
+grid <- expand.grid(mtry = 2:5, ntree = c(100, 500, 900))
+control <- trainControl(method = "cv", number = 7)
+
+rf2 <- 
+  train2 %>% 
+  filter_all(function(x) !is.na(x)) %>% #<<
+  train(Survived ~ ., 
+        data = ., 
+        method = customRF, #<<
+        trControl = control, tuneGrid = grid)
+
+```
+
+---
+# Tuning multiplos parâmetros através de um *custom model*
+
+```{r highlight.output=5}
+
+rf2$results
+
+```
+
+---
+class: left middle
+background-color: #d1b3ff
+
+# Aprendizagem não supervisionada
+
+.large[Clusters: Hierárquico e Kmeans]
+
+---
+# Países
+
+```{r}
+
+require(readxl)
+
+countries <- read_xlsx("data/countries.xlsx")
+
+countries %>% glimpse
+
+```
+
+---
+# Cluster hierárquico
+
+```{r}
+
+dataset <-
+  countries %>% 
+  group_by(Region) %>%
+  summarise_at(vars(`Infant mortality (per 1000 births)`:Service), 
+               list(function(x) mean(x, na.rm = TRUE)))
+
+names(dataset) <- glue::glue("X{0:9}")
+
+dataset
+
+```
+
+---
+# Cluster hierárquico
+
+```{r}
+
+dist(dataset %>% slice(1:5) %>% select(-X0))  # cálculos das distâncias (5 objetos)
+
+(fitHC <- hclust(dist(dataset %>% select(-X0)))) # ajuste do cluster
+
+```
+
+---
+# Dendograma
+
+.pull-left[
+```{r dendo, fig.show='hide'}
+
+fitHC$labels <- dataset$X0
+
+fitHC %>% plot(cex = .7)
+
+```
+]
+
+.pull-right[
+```{r ref.label='dendo', fig.align='center', echo=FALSE}
+```
+]
+
+---
+# Outros tipos de dendograma (e.g. `ape::as.phylo()`)
+
+```{r fig.align='center'}
+
+fitHC %>% ape::as.phylo() %>% plot(type = "fan", cex = .7) # "unrooted"/"cladogram"
+
+```
+
+---
+# Padronização
+
+```{r}
+
+dataset_scaled <- 
+  dataset %>% 
+  mutate_at(vars(X1:X9), list(scale))
+
+dataset_scaled
+
+```
+
+---
+# Análise com dados padronizados
+
+.pull-left[
+```{r dendo_scaled, fig.show='hide'}
+
+fitHCscaled <- hclust(dist(dataset_scaled %>% select(-X0)))
+
+fitHCscaled$labels <- dataset$X0
+
+fitHCscaled %>% plot(cex = .7)
+
+```
+]
+
+.pull-right[
+```{r echo=FALSE, ref.label='dendo_scaled'}
+```
+
+]
+---
+# Classificação
+
+.pull-left[
+
+Corte utilizando o argumento `k`:
+
+```{r}
+
+cutree(fitHCscaled, k = 3) %>% reshape2::melt(value.name = "cluster")
+
+```
+]
+
+.pull-right[
+
+Corte utilizando o argumento `h`:
+
+```{r}
+
+cutree(fitHCscaled, h = 4) %>% reshape2::melt(value.name = "cluster")
+
+```
+]
+
+---
+# K-means
+
+```{r}
+
+(fitKMscaled <- kmeans(dataset_scaled %>% select(-X0), 3))
+
+```
+
+---
+# Comparando modelos
+
+.pull-left[
+```{r}
+
+dataset_scaled %>% 
+  select(countries = X0) %>% 
+  mutate(cluster = fitKMscaled$cluster)
+
+```
+]
+
+.pull-right[
+```{r}
+
+cutree(fitHCscaled, k = 3) %>% reshape2::melt(value.name = "cluster")
+
+```
+]
+
+---
+# Classificando subdistribuições
+
+.pull-left[
+```{r distrib, fig.show='hide'}
+
+set.seed(1256)
+
+distrib1 <- rnorm(70, mean = 3, sd = 1)
+distrib2 <- rnorm(60, mean = 6, sd = 2)
+
+distrib <- c(distrib1, distrib2)
+
+ggplot() +
+  geom_histogram(aes(x = distrib), fill = "black") +
+  theme_minimal() +
+  labs(x = "x")
+
+```
+]
+
+.pull-right[
+```{r ref.label='distrib', echo=FALSE}
+```
+]
+
+---
+# Aplicando K-means
+
+```{r}
+
+(fitKM <- kmeans(distrib, 2))
+
+```
+
+---
+# Classificações
+
+.pull-left[
+```{r distribs, fig.show='hide'}
+
+distrib %>% 
+  tibble(x = .) %>% 
+  mutate(cluster = fitKM$cluster %>% as.factor) %>% 
+  ggplot(aes(x = x, fill = cluster, group = cluster)) +
+  geom_histogram(alpha = .5) +
+  theme_minimal()
+
+```
+]
+
+.pull-right[
+```{r echo=FALSE, ref.label='distribs'}
+```
+]
+
+---
+class: left middle
+background-color: yellow
+
+# Colocando modelos em produção
+
+.large[Utilização de API]
+
+---
+# Plumber
+
+.pull-left[
+
+An R package that converts your existing R code to a web API using a handful of special one-line comments. 
+
+]
+
+.pull-right[
+
+![](resources/images/plumber-broken.png)
+
+]
+---
+# Plumber
+
+```{r eval=FALSE}
+
+require(plumber)
+
+#* @apiTitle Prediction Survived
+
+#* Return the prediction survived
+#* @param sex Sex
+#* @param pclass Pclass
+#* @param age Age
+#* @get /predict
+function(sex, pclass, age) {
+  
+  load("R/plumber.RData")
+  
+  predict(cart0, newdata = data.frame(Sex = sex, Pclass = pclass, Age = as.numeric(age)))[2]
+  
+}
+
+```
+
+```{r eval=FALSE}
+
+plumber::plumb("R/predict.R")$run(port = 8000)
+
+```
+
+---
+class: center middle
+
+```{r out.height='60%', echo=FALSE}
+
+knitr::include_graphics("resources/images/citation.jpeg")
+
+```

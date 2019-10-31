@@ -1,0 +1,513 @@
+---
+output:
+  xaringan::moon_reader:
+    seal: false
+    lib_dir: libs
+    css: ["default", "default-fonts", "resources/css/progress.css", "resources/css/adds.css"]
+    nature:
+      ratio: "16:9"
+      highlightStyle: github
+      countIncrementalSlides: false
+      slideNumberFormat: |
+        <div class="progress-bar-container">
+          <div class="progress-bar" style="width: calc(%current% / %total% * 100%);">
+          </div>
+        </div>
+---
+class: inverse, left, middle
+
+background-image: url(resources/images/cover.gif)
+background-size: cover
+
+# Deep Reinforcement Learning
+
+### Conceitos e aplicações
+
+<img src="resources/images/logo-ibm.png" width="150px"/>
+
+.large[Thiago Pires | Aloha Squad | 16 Out 2019]
+
+---
+layout: true
+
+background-image: url(resources/images/logo-ibm.png)
+background-position: 95% 5%
+background-size: 10%
+
+---
+# Reinforcement Learning
+
+Área de **aprendizado de máquina** preocupada com a maneira como um agente deve executar ações em um ambiente para maximizar uma noção de recompensa cumulativa.
+
+O aprendizado por reforço é um dos **três paradigmas básicos** de aprendizado de máquina:
+
+--
+- Aprendizado supervisionado (supervised learning)
+
+--
+- Aprendizado não supervisionado (unsupervised learning)
+
+--
+- **Aprendizado por reforço (reinforcement learning)**
+
+---
+## Referências
+
+.pull-left[
+
+```{r echo=FALSE, out.width="50%", fig.cap="Documentário da NETFLIX (Alpha Go, 2018)", fig.align='center'}
+
+knitr::include_graphics("resources/images/alpha-go.jpg")
+
+```
+
+Trabalhos desenvolvidos pela [DeepMind](https://deepmind.com/) (uma empresa focada em inteligência artificial que foi adquirida pela Google em 2014).
+
+]
+
+.pull-right[
+
+```{r echo=FALSE, out.width="70%", fig.cap="Artigo na Nature"}
+
+knitr::include_graphics("resources/images/nature-paper.png")
+
+```
+
+```{r echo=FALSE, out.width="70%", fig.cap="Arquitetura da rede utilizada"}
+
+knitr::include_graphics("resources/images/nature-figure.png")
+
+```
+
+]
+
+---
+## Referências
+
+.pull-left[
+
+<iframe width="400" height="226" src="https://www.youtube.com/embed/VMp6pq6_QjI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+Ensinando um carro estacionar através de Reinforcement Learning. *Quanto mais próximo da vaga o algoritmo é recompensado e assim ele vai "entendo" quais são os percursos viáveis.*
+
+]
+
+.pull-right[
+
+<iframe width="400" height="226" src="https://www.youtube.com/embed/HEqQ2_1XRTs" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+Uso de Reinforcementt Learning pela Google como um **sistema de recomendação** para vídeos no Youtube.
+
+]
+
+---
+# Aprendizado por reforço em um exemplo
+
+```{bash echo=FALSE}
+
+dot -Tpng resources/images/rl-diagram.dot -o resources/images/rl-diagram.png
+
+```
+
+
+.pull-left[![](resources/images/rl-diagram.png)]
+
+--
+
+.pull-right[
+
+- **Estado:** Momento específico do jogo
+
+```{r echo=FALSE, out.width="32%", fig.align='center'}
+
+knitr::include_graphics("resources/images/states-pacman.gif")
+
+```
+  
+- **Agente:** Jogador
+- **Ação:** Ação do jogador
+
+```{r echo=FALSE, out.width="13%", fig.align='center'}
+
+knitr::include_graphics("resources/images/actions-joystick.gif")
+
+```
+
+- **Ambiente:** Pacman no Atari
+- **Recompensa:** Score
+
+*Em uma situação do jogo (estado), o jogador (agente), irá agir (ação) para que ele obtenha um maior score (recompensa).*
+
+]
+
+---
+# Generalização
+
+.center[
+
+```{r echo=FALSE, out.width="50%"}
+
+knitr::include_graphics("resources/images/reinforcement-learning.jpg")
+
+```
+
+]
+
+- **Environment:** Mundo real onde o agente atua
+- **State:** Atual situação do agente
+- **Reward:** Feedback do environment
+
+--
+- **Policy:** Método para mapear o estado do agente para atuar (estabelecimento de uma estratégia)
+- **Value:** Recompensa futura que um agente receberia ao executar uma ação em um estado específico
+
+---
+# Grid World Environment
+
+Encontrar uma política óptima de movimento através da grade 3 $\times$ 4.
+
+```{r echo=FALSE, message=FALSE}
+
+require(magrittr)
+
+matrix(c("1.3", "1.2", "Início", 
+                       "2.3", "Bloqueio", "2.1",
+                       "3.3", "3.2", "3.1",
+                       "Objetivo (+1)", "Perda (-1)", "4.1"), 3, 4) %>% 
+  as.data.frame() %>% 
+  knitr::kable(col.names = NULL, "html", align = "c") %>% 
+  kableExtra::column_spec (1:4, border_left = T, border_right = T, width = "1.5in") %>%
+  kableExtra::kable_styling()
+
+```
+
+- **Ações:** "up", "down", "left" e "right"
+- **Estados:** "1.1", "2.1", "3.1", etc
+- **Reconpensa:** "+1" em "Objetivo", "-1" em Perda e 0 caso contrário
+
+---
+# Aplicação no R
+
+## Criação do ambiente
+
+Mapear os estados e ações viáveis
+
+```{r eval=FALSE}
+
+require(ReinforcementLearning)
+
+GWenv <- function(state, action) {
+  next_state <- state
+  ## definir possíveis estados
+  if(state == state("1.1") && action == "up") next_state <- state("1.2")
+  if(state == state("1.1") && action == "right") next_state <- state("2.1")
+  if(state == state("2.1") && action == "right") next_state <- state("3.1")
+  if(state == state("2.1") && action == "left") next_state <- state("1.1")
+  if(state == state("3.1") && action == "right") next_state <- state("4.1")
+  if(state == state("3.1") && action == "left") next_state <- state("2.1")
+  if(state == state("3.1") && action == "up") next_state <- state("3.2")
+  if(state == state("4.1") && action == "left") next_state <- state("3.1")
+  if(state == state("4.1") && action == "up") next_state <- state("4.2")
+  
+```
+
+---
+## Criação do ambiente
+
+```{r eval=FALSE}
+
+## definir recomepensas em cada estado
+  ## fazer todos igual a 0
+  reward <- 0
+  ## Goal state 4.3 tem recompensa de 1
+  if (next_state == state("4.3") && (state == state("3.3"))) reward <- 1
+  ## Forfeiture state 4.2 tem recompensa de -1
+  if (next_state == state("4.2") && (state == state("3.2"))) reward <- -1
+  if (next_state == state("4.2") && (state == state("4.1"))) reward <- -1
+  
+  ## 
+  out <- list("NextState" = next_state, "Reward" = reward)
+  return(out)
+}
+
+```
+
+---
+## Definição dos estados e ações
+
+```{r}
+
+# Definir conjuntoi de estados e ações
+states <- c("1.1", "2.1", "3.1", "4.1",
+            "1.2",        "3.2", "4.2",
+            "1.3", "2.3", "3.3", "4.3")
+states
+actions <- c("up", "down", "left", "right")
+actions
+
+```
+
+---
+## Amostra de transição dos estados
+
+.pull-left[
+
+```{r message=FALSE}
+
+source("R/GWenv.R")
+
+set.seed(1234)
+data <- sampleExperience(N = 1000, 
+                         env = GWenv, 
+                         states = states, 
+                         actions = actions)
+
+```
+
+]
+
+.pull-right[
+
+```{r}
+
+data %>% head()
+
+```
+
+]
+
+---
+## Definição de alguns parâmetos
+
+```{r}
+
+control <- list(alpha = 0.1, # baixa taxa de aprendizagem
+                gamma = 0.5, # determina o equilíbrio entre recompensas imediatas e futuras
+                epsilon = 0.1) # baixo fator de exploração
+control
+
+```
+
+---
+## Ajuste do modelo
+
+```{r}
+
+model <- ReinforcementLearning(data, 
+                               s = "State", 
+                               a = "Action", 
+                               r = "Reward", 
+                               s_new = "NextState", 
+                               control = control)
+
+# Resultados (listados os 6 primeiros)
+model$Q %>% head()
+
+```
+
+---
+## Política ótima
+
+```{r}
+
+# Política (melhor estratégia)
+model$Policy
+
+```
+
+```{r echo=FALSE}
+
+require(magrittr)
+
+matrix(c("1.3 (>)", "1.2 (^)", "Início (^)", 
+                       "2.3 (>)", "Bloqueio", "2.1 (>)",
+                       "3.3 (>)", "3.2 (^)", "3.1 (^)",
+                       "Objetivo (+1)", "Perda (-1)", "4.1 (<)"), 3, 4) %>% 
+  as.data.frame() %>% 
+  knitr::kable(col.names = NULL, "html", align = "c") %>% 
+  kableExtra::column_spec (1:4, border_left = T, border_right = T, width = "1.5in") %>%
+  kableExtra::kable_styling()
+
+```
+
+---
+# Q-Learning
+
+- Inicializar os $Q(s_t, a_t)$ para todos os pares $(s_t, a_t)$
+
+- Observar o atual $s_t$ (estado)
+
+- Repetir estas etapas até convergir
+  - Selecionar uma ação $a$ e mover para um próximo estado $s_{t+1}$
+  - Receber recompensa $r_t$
+  - Atualizar os $Q(s_t, a_t)$ de acordo com:
+  
+  ${\displaystyle Q^{new}(s_{t},a_{t})\leftarrow (1-\alpha )\cdot \underbrace {Q(s_{t},a_{t})} _{\text{old value}}+\underbrace {\alpha } _{\text{learning rate}}\cdot \overbrace {{\bigg (}\underbrace {r_{t}} _{\text{reward}}+\underbrace {\gamma } _{\text{discount factor}}\cdot \underbrace {\max _{a}Q(s_{t+1},a)} _{\text{estimate of optimal future value}}{\bigg )}} ^{\text{learned value}}}$
+  
+  - A atualização segue até chegar em um estado final $Q(s_f, a)$.
+
+.right[[en.wikipedia.org/wiki/Q-learning](https://en.wikipedia.org/wiki/Q-learning)]
+
+---
+# Q-Learning no R
+
+```{r eval=FALSE}
+
+learnEpisode <- function(s_0, # estado inicial
+                         s_terminal, # estado final
+                         epsilon, # exploração
+                         learning_rate, # taxa de aprendizado
+                         discount_factor, # fator de disconto
+                         Q) { # valores iniciais
+  
+  state <- s_0 # inicial estado
+  reward <- 0 # armazena recompensa total por episódio
+  
+  while (state != s_terminal) {
+    # seleções de ações (epsilon-greedy)
+    if (runif(1) <= epsilon) {
+      # explorar novas ações
+      action <- sample(actions, 1)
+    } else {
+      # extrair a melhor ação
+      action <- names(which.max(Q[state, ]))
+    }
+
+```
+
+---
+# Q-Learning no R
+
+```{r eval=F}
+
+# obter o próximo estado e reconpensa do ambiente
+    response <- GWenv(state, action)
+    # atualizar regra pelo Q-Learning
+    Q[state, action] <- Q[state, action] + learning_rate * 
+      (response$Reward + discount_factor * max(Q[response$NextState, ]) - Q[state, action])
+    # recompensa cumulativa
+    reward <- reward + response$Reward
+    # movimento para o próximo estado
+    state <- response$NextState
+    
+  }
+  
+  return(list(Q = Q, reward = reward))
+  
+}
+
+```
+
+---
+# Q-Learning no R
+
+```{r}
+
+# hiperparâmetros
+epsilon <- .1
+learning_rate <- .1
+discount_factor <- .5
+set.seed(5)
+
+# rodando o modelo
+source("R/QLearning.R")
+
+Q <- QLearning(400, "1.1", c("4.2", "4.3"), epsilon, learning_rate, discount_factor)$Q
+
+```
+
+---
+# Q-Learning no R
+## Política
+
+.pull-left[
+
+```{r message=FALSE}
+
+require(dplyr)
+
+policy <- 
+  tibble(states = states) %>% 
+  bind_cols(actions = actions[max.col(Q)])
+
+policy %<>% 
+  mutate(states = states %>% as.numeric()) %>% 
+  arrange(states)
+
+```
+
+]
+
+.pull-right[
+
+```{r}
+
+policy
+
+```
+
+]
+
+---
+# Modelo conceitual do Cortex
+
+.pull-left[
+
+```{r echo=FALSE}
+
+DiagrammeR::grViz("resources/images/rl-diagram-cortex.dot")
+
+```
+]
+
+--
+
+.pull-right[
+
+- **Estado:** Conjunto de tickets com suas informações e agravantes
+- **Agente:** Recommender
+- **Ação:** Escolha e alocação do técnico
+- **Ambiente:** Cortex
+- **Recompensa:** SLA in e/ou menor tempo de atendimento
+
+*Criar uma **inteligência artificial** que aprenda uma **estratégia** de alocar um técnico de forma que a longo prazo aumente o SLA in ou **reduza** o tempo médio de atendimento.*
+
+]
+
+---
+# Deep Reinforcement Learning
+
+Quando o espaço de estados e **ações são muito grandes para serem completamente conhecidos**, se torna importante a utilização das redes neurais para uma aproximação dos valores de $Q$ (estimados no algorítmo de Q-Learning).
+
+.center[
+
+```{r echo=FALSE, out.width="80%"}
+
+knitr::include_graphics("resources/images/drl-diagram.png")
+
+```
+
+]
+
+---
+# Exemplo: CartPole
+
+Um poste é colocado sobre um carrinho, que se move ao longo de uma pista sem atrito. Onde de deve usar as setas do teclado para aplicar uma força no carrinho e assim equilibrar o poste sobre ele. Uma versão do jogo poderá ser encontrada em: https://fluxml.ai/experiments/cartPole/.
+
+.center[
+
+```{r echo=FALSE, out.width="30%"}
+
+knitr::include_graphics("resources/images/cartpole.gif")
+
+```
+
+]
+
+---
+# Aplicação com Python
+
+Baseado neste [post](https://keon.io/deep-q-learning/).
+
+
+
