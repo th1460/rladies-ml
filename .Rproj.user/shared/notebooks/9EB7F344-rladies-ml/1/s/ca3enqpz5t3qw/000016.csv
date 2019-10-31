@@ -11,4 +11,3 @@
 "0","        data = ., "
 "0","        method = customRF, #<<"
 "0","        trControl = control, tuneGrid = grid)"
-"0",""

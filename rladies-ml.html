@@ -287,9 +287,9 @@ cart0 %&gt;% printcp()
 ##         CP nsplit rel error  xerror     xstd
 ## 1 0.444444      0   1.00000 1.00000 0.042446
 ## 2 0.023392      1   0.55556 0.55556 0.035750
-## 3 0.014620      2   0.53216 0.58187 0.036351
-## 4 0.011696      4   0.50292 0.58772 0.036480
-## 5 0.010000      6   0.47953 0.54386 0.035472
+## 3 0.014620      2   0.53216 0.56140 0.035886
+## 4 0.011696      4   0.50292 0.54971 0.035612
+## 5 0.010000      6   0.47953 0.50877 0.034599
 ```
 
 ---
@@ -1040,6 +1040,35 @@ distrib %&gt;%
 .pull-right[
 &lt;img src="rladies-ml_files/figure-html/unnamed-chunk-39-1.png" width="504" /&gt;
 ]
+
+---
+# Validação do número de clusters
+
+
+```r
+require(clValid)
+
+results &lt;-
+  dataset_scaled %&gt;% select(-X0) %&gt;% as.matrix() %&gt;% 
+  clValid(., 
+          2:5, # número de clusters
+          clMethods = c("hierarchical", "kmeans"), # métodos
+          validation = c("internal","stability")) # medidas
+
+res &lt;-getRanksWeights(results)
+print(res$ranks[ ,1:3], quote = FALSE)
+```
+
+```
+##              1              2              3             
+## APN          hierarchical-2 kmeans-5       hierarchical-5
+## AD           kmeans-5       hierarchical-5 hierarchical-4
+## ADM          hierarchical-2 kmeans-5       hierarchical-5
+## FOM          kmeans-5       hierarchical-5 hierarchical-4
+## Connectivity hierarchical-2 kmeans-2       hierarchical-3
+## Dunn         hierarchical-5 kmeans-5       hierarchical-4
+## Silhouette   hierarchical-2 kmeans-2       hierarchical-5
+```
 
 ---
 class: left middle

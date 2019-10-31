@@ -1,0 +1,7 @@
+"0",""
+"0","fitHCscaled <- hclust(dist(dataset_scaled %>% select(-X0)))"
+"0",""
+"0","fitHCscaled$labels <- dataset$X0"
+"0",""
+"0","fitHCscaled %>% plot(cex = .7)"
+"0",""

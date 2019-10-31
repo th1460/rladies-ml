@@ -1,0 +1,3 @@
+"0",""
+"0","fitHC %>% ape::as.phylo() %>% plot(type = ""fan"", cex = .7) # ""unrooted""/""cladogram"""
+"0",""

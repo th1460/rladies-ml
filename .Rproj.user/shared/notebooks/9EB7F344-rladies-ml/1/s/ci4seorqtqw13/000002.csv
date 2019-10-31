@@ -1,0 +1,2 @@
+"0",""
+"0","cutree(fitHCscaled, k = 3) %>% reshape2::melt(value.name = ""cluster"")"

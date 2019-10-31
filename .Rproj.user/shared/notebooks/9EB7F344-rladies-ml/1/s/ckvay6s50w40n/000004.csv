@@ -1,6 +1,0 @@
-"0",""
-"0","dataset_scaled <- "
-"0","  dataset %>% "
-"0","  mutate_at(vars(X1:X9), list(scale))"
-"0",""
-"0","dataset_scaled"
