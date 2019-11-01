@@ -1,5 +1,5 @@
 # rladies-ml
-14º Meetup R-Ladies São Paulo - Machine Learning com aplicação em R
+14º Meetup R-Ladies São Paulo realizado em 31 de outubro de 2019 - Machine Learning com aplicação em R
 
 A apresentação está organizada em:
 
